@@ -1,0 +1,61 @@
+---
+- name: Gather the facts the role needs
+  ansible.builtin.setup:
+    gather_subset:
+      - "!all"
+      - "!min"
+      - distribution
+      - pkg_mgr
+      - service_mgr
+  when: >-
+    ansible_facts['os_family'] is not defined
+    or ansible_facts['pkg_mgr'] is not defined
+    or ansible_facts['service_mgr'] is not defined
+
+- name: Install the OpenSSH server
+  when: ssh_bootstrap_install_server | bool
+  block:
+    - name: Check whether the OpenSSH server is installed (apt)
+      ansible.builtin.command:
+        argv: [dpkg-query, --show, "--showformat=${db:Status-Status}", "{{ __ssh_bootstrap_package }}"]
+      register: __ssh_bootstrap_dpkg
+      changed_when: false
+      failed_when: false
+      check_mode: false
+      when: ansible_facts['pkg_mgr'] == 'apt'
+
+    # Refresh the package lists first, which a fresh image may not have.
+    - name: Install the OpenSSH server package with apt
+      ansible.builtin.apt:
+        name: "{{ __ssh_bootstrap_package }}"
+        state: present
+        update_cache: true
+      when:
+        - ansible_facts['pkg_mgr'] == 'apt'
+        - __ssh_bootstrap_dpkg.stdout | default('') != 'installed'
+
+    - name: Install the OpenSSH server package
+      ansible.builtin.package:
+        name: "{{ __ssh_bootstrap_package }}"
+        state: present
+      when: ansible_facts['pkg_mgr'] != 'apt'
+
+    # Debian and Ubuntu start sshd from the package, on Ubuntu through ssh.socket, which an
+    # enabled ssh.service would clash with. The other families need it started.
+    - name: Start sshd and enable it at boot
+      ansible.builtin.systemd_service:
+        name: "{{ __ssh_bootstrap_service }}"
+        state: started
+        enabled: true
+      when: ansible_facts['os_family'] != 'Debian'
+
+- name: Manage authorized keys
+  ansible.builtin.include_tasks: authorized_keys.yml
+  loop: "{{ ssh_bootstrap_authorized_keys }}"
+  loop_control:
+    loop_var: __ssh_bootstrap_entry
+    label: "{{ __ssh_bootstrap_entry.user }}"
+
+- name: Configure sshd
+  ansible.builtin.include_tasks: sshd.yml
+  when: ssh_bootstrap_sshd_settings | length > 0

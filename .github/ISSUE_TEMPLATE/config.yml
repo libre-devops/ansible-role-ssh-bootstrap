@@ -1,0 +1,6 @@
+---
+blank_issues_enabled: false
+contact_links:
+  - name: sshd_config manual page
+    url: https://man.openbsd.org/sshd_config
+    about: What each sshd setting does.

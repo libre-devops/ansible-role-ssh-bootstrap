@@ -1,0 +1,14 @@
+---
+# Adds keys for two existing users (one exclusive), writes a hardened drop-in, and checks with
+# sshd -t and sshd -T, then a second run with no changes. RHEL 8 has no Include line, so it
+# also proves the role adds one.
+scenario:
+  test_sequence:
+    - destroy
+    - syntax
+    - create
+    - prepare
+    - converge
+    - idempotence
+    - verify
+    - destroy

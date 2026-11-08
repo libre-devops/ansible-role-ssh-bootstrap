@@ -1,0 +1,151 @@
+---
+# Writes the settings to a drop-in in /etc/ssh/sshd_config.d, so the distribution's own
+# sshd_config stays untouched apart from an Include line where one is missing. The drop-in is
+# checked with sshd -t on its own before it is put in place, and the whole configuration is
+# checked again afterwards: if that fails, the previous drop-in comes back and sshd is not
+# reloaded, so a bad setting cannot lock anyone out.
+
+- name: Find the sshd configuration
+  ansible.builtin.stat:
+    path: "{{ __ssh_bootstrap_main_config }}"
+  register: __ssh_bootstrap_main_stat
+
+- name: Read the sshd configuration sshd uses
+  ansible.builtin.slurp:
+    src: "{{ __ssh_bootstrap_main_config if __ssh_bootstrap_main_stat.stat.exists else __ssh_bootstrap_vendor_config }}"
+  register: __ssh_bootstrap_config
+
+- name: Note whether the drop-in directory is included
+  ansible.builtin.set_fact:
+    __ssh_bootstrap_has_include: >-
+      {{ __ssh_bootstrap_config.content | b64decode
+         is search('(?m)^\s*Include\s+/etc/ssh/sshd_config\.d/\*\.conf\s*$') }}
+
+- name: Add the Include line to the top of sshd_config
+  ansible.builtin.lineinfile:
+    path: "{{ __ssh_bootstrap_main_config }}"
+    line: "{{ __ssh_bootstrap_include_line }}"
+    insertbefore: BOF
+    validate: "{{ __ssh_bootstrap_sshd }} -t -f %s"
+  notify: Reload sshd
+  when:
+    - __ssh_bootstrap_main_stat.stat.exists
+    - not __ssh_bootstrap_has_include | bool
+    - ssh_bootstrap_sshd_ensure_include | bool
+
+- name: Check the drop-in directory will be read
+  ansible.builtin.assert:
+    that:
+      - (__ssh_bootstrap_has_include | bool) or (__ssh_bootstrap_main_stat.stat.exists and ssh_bootstrap_sshd_ensure_include | bool)
+    fail_msg: >-
+      sshd's configuration does not include {{ __ssh_bootstrap_dropin_dir }}/*.conf, so the
+      drop-in would be ignored. Set ssh_bootstrap_sshd_ensure_include to true, or add the
+      Include line yourself.
+    quiet: true
+
+- name: Create the drop-in directory
+  ansible.builtin.file:
+    path: "{{ __ssh_bootstrap_dropin_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+# Debian and Ubuntu start sshd on demand, so this directory may not exist yet, and sshd -t
+# refuses to run without it.
+- name: Create the sshd privilege separation directory
+  ansible.builtin.file:
+    path: /run/sshd
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: Write the drop-in and check the whole configuration
+  block:
+    - name: Write the drop-in
+      ansible.builtin.template:
+        src: sshd_dropin.conf.j2
+        dest: "{{ __ssh_bootstrap_dropin_path }}"
+        owner: root
+        group: root
+        mode: "0600"
+        backup: true
+        validate: "{{ __ssh_bootstrap_sshd }} -t -f %s"
+      register: __ssh_bootstrap_dropin
+      notify: Reload sshd
+
+    - name: Check the whole sshd configuration
+      ansible.builtin.command:
+        argv: ["{{ __ssh_bootstrap_sshd }}", -t]
+      changed_when: false
+      check_mode: false
+
+  rescue:
+    - name: Put the previous drop-in back
+      ansible.builtin.copy:
+        src: "{{ __ssh_bootstrap_dropin.backup_file }}"
+        dest: "{{ __ssh_bootstrap_dropin_path }}"
+        remote_src: true
+        owner: root
+        group: root
+        mode: "0600"
+      when: __ssh_bootstrap_dropin.backup_file is defined
+
+    - name: Remove the new drop-in
+      ansible.builtin.file:
+        path: "{{ __ssh_bootstrap_dropin_path }}"
+        state: absent
+      when:
+        - __ssh_bootstrap_dropin is changed
+        - __ssh_bootstrap_dropin.backup_file is not defined
+
+    - name: Stop without reloading sshd
+      ansible.builtin.fail:
+        msg: >-
+          sshd -t rejected the configuration with the new drop-in, so the previous one is back
+          and sshd was not reloaded: {{ ansible_failed_result.stderr | default(ansible_failed_result.msg) }}
+
+- name: Delete the drop-in backup
+  ansible.builtin.file:
+    path: "{{ __ssh_bootstrap_dropin.backup_file }}"
+    state: absent
+  when: __ssh_bootstrap_dropin.backup_file is defined
+
+- name: Reload sshd now, so the settings can be checked
+  ansible.builtin.meta: flush_handlers
+
+- name: Read the settings sshd is using
+  ansible.builtin.command:
+    argv: ["{{ __ssh_bootstrap_sshd }}", -T]
+  register: __ssh_bootstrap_effective
+  changed_when: false
+  check_mode: false
+  when: ssh_bootstrap_verify_effective | bool
+
+# sshd -T prints lower-case names, one line per value for a few multi-value settings, times in
+# seconds and some values under older names. So only single-value settings are compared, times
+# written with a unit (such as 1m) are skipped, and known aliases are translated.
+- name: Check every single-value setting is in effect
+  vars:
+    __ssh_bootstrap_key: "{{ item.key | lower }}"
+    __ssh_bootstrap_expected: >-
+      {{ __ssh_bootstrap_key ~ ' '
+         ~ (__ssh_bootstrap_sshd_t_aliases[__ssh_bootstrap_key] | default({})).get(item.value | lower, item.value | lower) }}
+    __ssh_bootstrap_actual: "{{ __ssh_bootstrap_effective.stdout_lines | select('match', '(?i)^' ~ item.key ~ ' ') | list }}"
+  ansible.builtin.assert:
+    that:
+      - __ssh_bootstrap_actual | length != 1 or __ssh_bootstrap_actual[0] | lower == __ssh_bootstrap_expected
+    fail_msg: >-
+      sshd is using '{{ __ssh_bootstrap_actual | first | default('') }}', not '{{ item.key }} {{ item.value }}'.
+      Something read before the drop-in sets it, such as a line above the Include in sshd_config or a
+      drop-in that sorts earlier. Remove that line, or rename the drop-in with ssh_bootstrap_sshd_dropin_name.
+    quiet: true
+  loop: "{{ __ssh_bootstrap_rendered_settings | from_json }}"
+  loop_control:
+    label: "{{ item.key }}"
+  when:
+    - ssh_bootstrap_verify_effective | bool
+    - item.value is not search(' ')
+    - item.value is not match('^[0-9]+[smhdwSMHDW]')

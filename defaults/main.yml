@@ -1,0 +1,33 @@
+---
+# Every variable is described in README.md and validated by meta/argument_specs.yml.
+
+# Public keys to add (or remove) for existing users. Each entry:
+#   user:       the account, which must already exist
+#   keys:       public keys as strings
+#   key_files:  paths on the control node to public key files, for example ~/.ssh/id_ed25519.pub
+#   exclusive:  true removes every other key from the user's authorized_keys
+#   state:      present (default) or absent, to remove these keys
+ssh_bootstrap_authorized_keys: []
+
+# Skip key_files that do not exist on the control node, instead of failing.
+ssh_bootstrap_skip_missing_key_files: false
+
+# Install the OpenSSH server package if it is missing.
+ssh_bootstrap_install_server: false
+
+# sshd settings, written to a drop-in file in /etc/ssh/sshd_config.d. Booleans become yes or
+# no, lists become space-separated values. Set it to {} to leave sshd alone.
+ssh_bootstrap_sshd_settings:
+  PermitEmptyPasswords: false
+
+# The drop-in file. sshd uses the first value it reads for most settings, and reads the
+# drop-ins in name order, so a low number wins over files such as 50-cloud-init.conf.
+ssh_bootstrap_sshd_dropin_name: 10-ssh-bootstrap.conf
+
+# Add "Include /etc/ssh/sshd_config.d/*.conf" to the top of /etc/ssh/sshd_config when it is
+# missing (RHEL 8 and older configurations).
+ssh_bootstrap_sshd_ensure_include: true
+
+# After reloading, check with sshd -T that every setting is in effect, and fail if something
+# earlier in the configuration overrides it.
+ssh_bootstrap_verify_effective: true

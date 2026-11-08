@@ -1,0 +1,75 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Read deploy's authorized_keys
+      ansible.builtin.slurp:
+        src: /home/deploy/.ssh/authorized_keys
+      register: __verify_deploy
+
+    - name: Read ops's authorized_keys
+      ansible.builtin.slurp:
+        src: /home/ops/.ssh/authorized_keys
+      register: __verify_ops
+
+    - name: Check the keys
+      ansible.builtin.assert:
+        that:
+          # deploy: the key from the file is added and the existing key is kept.
+          - "'deploy@molecule.example' in __verify_deploy.content | b64decode"
+          - "'existing@molecule.example' in __verify_deploy.content | b64decode"
+          # ops: exclusive, so only the managed key is left.
+          - "'ops@molecule.example' in __verify_ops.content | b64decode"
+          - "'stray@molecule.example' not in __verify_ops.content | b64decode"
+        quiet: true
+
+    - name: Read the drop-in
+      ansible.builtin.stat:
+        path: /etc/ssh/sshd_config.d/10-ssh-bootstrap.conf
+      register: __verify_dropin
+
+    - name: Check the drop-in is private
+      ansible.builtin.assert:
+        that:
+          - __verify_dropin.stat.exists
+          - __verify_dropin.stat.mode == '0600'
+        quiet: true
+
+    - name: Read the settings sshd is using
+      ansible.builtin.command:
+        cmd: /usr/sbin/sshd -T
+      register: __verify_effective
+      changed_when: false
+
+    - name: Check the settings are in effect
+      ansible.builtin.assert:
+        that:
+          - "'permitemptypasswords no' in __verify_effective.stdout_lines"
+          - "'permitrootlogin without-password' in __verify_effective.stdout_lines"
+          - "'logingracetime 60' in __verify_effective.stdout_lines"
+          - "'passwordauthentication no' in __verify_effective.stdout_lines"
+          - "'maxauthtries 3' in __verify_effective.stdout_lines"
+          - __verify_effective.stdout is search('(?m)^allowusers deploy')
+        quiet: true
+
+    - name: Read sshd_config
+      ansible.builtin.slurp:
+        src: /etc/ssh/sshd_config
+      register: __verify_main
+      when: ansible_facts['distribution_major_version'] != '16'
+
+    - name: Check sshd_config includes the drop-in directory
+      ansible.builtin.assert:
+        that:
+          - __verify_main.content | b64decode is search('(?m)^Include /etc/ssh/sshd_config\.d/\*\.conf')
+        quiet: true
+      when: ansible_facts['distribution_major_version'] != '16'
+
+    - name: Check no backup of the drop-in is left behind
+      ansible.builtin.find:
+        paths: /etc/ssh/sshd_config.d
+        patterns: "10-ssh-bootstrap.conf.*"
+      register: __verify_backups
+      failed_when: __verify_backups.matched > 0

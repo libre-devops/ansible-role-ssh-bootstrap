@@ -1,0 +1,6 @@
+{{ ansible_managed | comment }}
+# Settings from ssh_bootstrap_sshd_settings. sshd uses the first value it reads for most
+# settings, so this file is named to sort before the distribution's own drop-ins.
+{% for setting in __ssh_bootstrap_rendered_settings | from_json %}
+{{ setting.key }} {{ setting.value }}
+{% endfor %}

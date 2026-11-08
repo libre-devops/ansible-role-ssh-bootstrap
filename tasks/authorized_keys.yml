@@ -1,0 +1,58 @@
+---
+# One entry of ssh_bootstrap_authorized_keys. Keys from files are read on the control node.
+# All of a user's keys go to authorized_key in one call, so exclusive keeps exactly these.
+
+- name: Look up the user
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ __ssh_bootstrap_entry.user }}"
+    fail_key: false
+
+- name: Check the user exists
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['getent_passwd'][__ssh_bootstrap_entry.user] is not none
+    fail_msg: >-
+      User {{ __ssh_bootstrap_entry.user }} does not exist on {{ inventory_hostname }}. This role
+      only adds keys: create the user first, for example with ansible.builtin.user.
+    quiet: true
+
+- name: Find the key files on the control node
+  ansible.builtin.set_fact:
+    __ssh_bootstrap_key_files: "{{ __ssh_bootstrap_entry.key_files | default([]) | map('expanduser') | list }}"
+
+- name: Check the key files exist
+  ansible.builtin.assert:
+    that:
+      - item is file
+    fail_msg: >-
+      {{ item }} does not exist on the control node. Fix the path, or set
+      ssh_bootstrap_skip_missing_key_files to true to skip files that are missing.
+    quiet: true
+  loop: "{{ __ssh_bootstrap_key_files }}"
+  when: not ssh_bootstrap_skip_missing_key_files | bool
+
+- name: Collect the keys
+  ansible.builtin.set_fact:
+    # .get('keys'), because .keys (and ['keys'] when it is missing) is the dict's keys() method.
+    __ssh_bootstrap_keys: >-
+      {{ ((__ssh_bootstrap_entry.get('keys') or [])
+          + query('ansible.builtin.file', *(__ssh_bootstrap_key_files | select('file') | list)))
+         | map('trim') | select | list }}
+
+- name: Check there is at least one key
+  ansible.builtin.assert:
+    that:
+      - __ssh_bootstrap_keys | length > 0
+    fail_msg: >-
+      The entry for {{ __ssh_bootstrap_entry.user }} has no keys. With exclusive set, that would
+      remove every key the user has, so the role stops instead.
+    quiet: true
+
+- name: Set the authorized keys
+  ansible.posix.authorized_key:
+    user: "{{ __ssh_bootstrap_entry.user }}"
+    key: "{{ __ssh_bootstrap_keys | join('\n') }}"
+    exclusive: "{{ __ssh_bootstrap_entry.exclusive | default(false) }}"
+    state: "{{ __ssh_bootstrap_entry.state | default('present') }}"
+    manage_dir: true

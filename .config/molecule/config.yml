@@ -1,0 +1,71 @@
+---
+# Shared by every scenario under molecule/. Each platform boots systemd as PID 1, because the
+# role manages the sshd service. Pick one with: just test default rhel9
+# (the justfile adds the ssh- prefix, which keeps these containers apart from other roles' tests)
+# Collections come from requirements.yml through "just deps", not from Molecule.
+driver:
+  name: podman
+
+platforms:
+  - name: ssh-rhel8
+    image: registry.access.redhat.com/ubi8/ubi-init:latest
+    dockerfile: ../../.config/molecule/Containerfile.j2
+    command: /sbin/init
+    systemd: always
+  - name: ssh-rhel9
+    image: registry.access.redhat.com/ubi9/ubi-init:latest
+    dockerfile: ../../.config/molecule/Containerfile.j2
+    command: /sbin/init
+    systemd: always
+  - name: ssh-rocky10
+    image: docker.io/rockylinux/rockylinux:10-ubi-init
+    dockerfile: ../../.config/molecule/Containerfile.j2
+    command: /sbin/init
+    systemd: always
+  - name: ssh-debian12
+    image: docker.io/library/debian:12
+    dockerfile: ../../.config/molecule/Containerfile.j2
+    command: /sbin/init
+    systemd: always
+  - name: ssh-debian13
+    image: docker.io/library/debian:13
+    dockerfile: ../../.config/molecule/Containerfile.j2
+    command: /sbin/init
+    systemd: always
+  - name: ssh-ubuntu2404
+    image: docker.io/library/ubuntu:24.04
+    dockerfile: ../../.config/molecule/Containerfile.j2
+    command: /sbin/init
+    systemd: always
+  - name: ssh-ubuntu2604
+    image: docker.io/library/ubuntu:26.04
+    dockerfile: ../../.config/molecule/Containerfile.j2
+    command: /sbin/init
+    systemd: always
+  - name: ssh-sles15
+    image: registry.suse.com/bci/bci-init:15.7
+    dockerfile: ../../.config/molecule/Containerfile.j2
+    command: /sbin/init
+    systemd: always
+  - name: ssh-sles16
+    image: registry.suse.com/bci/bci-init:16.0
+    dockerfile: ../../.config/molecule/Containerfile.j2
+    command: /sbin/init
+    systemd: always
+
+provisioner:
+  name: ansible
+  config_options:
+    defaults:
+      callback_result_format: yaml
+      interpreter_python: auto_silent
+  inventory:
+    host_vars:
+      # RHEL 8 and SLES 15 ship Python 3.6, which ansible-core no longer supports on targets.
+      ssh-rhel8:
+        ansible_python_interpreter: /usr/bin/python3.12
+      ssh-sles15:
+        ansible_python_interpreter: /usr/bin/python3.11
+
+verifier:
+  name: ansible

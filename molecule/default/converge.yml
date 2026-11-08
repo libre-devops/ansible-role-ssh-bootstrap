@@ -1,0 +1,23 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    ssh_bootstrap_install_server: true
+    ssh_bootstrap_authorized_keys:
+      - user: deploy
+        key_files:
+          - "{{ playbook_dir }}/../fixtures/deploy.pub"
+      - user: ops
+        keys:
+          - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDbGTF/HRLfSJVQ4hkUMIQKLE+An1+orMA0maNKWy3Ee ops@molecule.example
+        exclusive: true
+    ssh_bootstrap_sshd_settings:
+      PermitEmptyPasswords: false
+      PermitRootLogin: prohibit-password
+      LoginGraceTime: 1m
+      PasswordAuthentication: false
+      MaxAuthTries: 3
+      AllowUsers: [deploy, ops, root]
+  roles:
+    - role: libre_devops.ssh_bootstrap

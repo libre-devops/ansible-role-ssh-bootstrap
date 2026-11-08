@@ -1,0 +1,35 @@
+---
+# Internal values. Not meant to be overridden.
+
+__ssh_bootstrap_service: "{{ 'ssh' if ansible_facts['os_family'] == 'Debian' else 'sshd' }}"
+__ssh_bootstrap_package: openssh-server
+__ssh_bootstrap_sshd: /usr/sbin/sshd
+__ssh_bootstrap_dropin_dir: /etc/ssh/sshd_config.d
+__ssh_bootstrap_dropin_path: "{{ __ssh_bootstrap_dropin_dir }}/{{ ssh_bootstrap_sshd_dropin_name }}"
+__ssh_bootstrap_include_line: Include /etc/ssh/sshd_config.d/*.conf
+
+# sshd reads /etc/ssh/sshd_config. Where that does not exist (SLES 16, openSUSE), it reads
+# the vendor file in /usr/etc/ssh, which the role never edits.
+__ssh_bootstrap_main_config: /etc/ssh/sshd_config
+__ssh_bootstrap_vendor_config: /usr/etc/ssh/sshd_config
+
+# A setting's value as sshd_config wants it.
+__ssh_bootstrap_rendered_settings: >-
+  {%- set rendered = namespace(lines=[]) -%}
+  {%- for key, value in ssh_bootstrap_sshd_settings | dictsort -%}
+  {%- if value is boolean -%}
+  {%- set text = 'yes' if value else 'no' -%}
+  {%- elif value is iterable and value is not string and value is not mapping -%}
+  {%- set text = value | map('string') | join(' ') -%}
+  {%- else -%}
+  {%- set text = value | string -%}
+  {%- endif -%}
+  {%- set rendered.lines = rendered.lines + [{'key': key, 'value': text}] -%}
+  {%- endfor -%}
+  {{ rendered.lines | to_json }}
+
+# sshd -T prints some values under an older name, so the effective-settings check compares
+# with that name.
+__ssh_bootstrap_sshd_t_aliases:
+  permitrootlogin:
+    prohibit-password: without-password

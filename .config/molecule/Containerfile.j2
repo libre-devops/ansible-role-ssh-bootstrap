@@ -1,0 +1,22 @@
+# Test image for every platform: systemd as PID 1, Python for Ansible, and sudo so the tests
+# use become the same way a real run does. The ubi-init images already have systemd and Python.
+# libcap2 (Debian, Ubuntu) and util-linux-systemd (SUSE, for logger) are on every normal server
+# install but missing from the minimal images, and Microsoft's agents need them.
+FROM {{ item.image }}
+
+{% if 'ubi' in item.image %}
+RUN dnf -y install sudo{{ ' python3.12' if 'ubi8' in item.image else '' }} \
+    && dnf clean all
+{% elif 'debian' in item.image or 'ubuntu' in item.image %}
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends systemd systemd-sysv python3 python3-apt ca-certificates sudo libcap2 \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+{% elif 'suse' in item.image %}
+RUN zypper --non-interactive install --no-recommends {{ 'python311' if ':15' in item.image else 'python3' }} sudo util-linux-systemd \
+    && zypper clean --all
+{% endif %}
+
+STOPSIGNAL SIGRTMIN+3
+CMD ["/sbin/init"]

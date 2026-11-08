@@ -1,0 +1,13 @@
+---
+# Install the role straight from GitHub, pinned to a release tag:
+#   ansible-galaxy install -r requirements.yml
+roles:
+  - name: libre_devops.ssh_bootstrap
+    src: https://github.com/libre-devops/ansible-role-ssh-bootstrap.git
+    scm: git
+    version: 1.0.0
+
+collections:
+  - name: ansible.posix
+  # Only for SUSE hosts with ssh_bootstrap_install_server: true.
+  - name: community.general

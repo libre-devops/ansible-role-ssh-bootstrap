@@ -1,0 +1,24 @@
+---
+- name: Prepare
+  hosts: all
+  become: true
+  tasks:
+    - name: Create the test users
+      ansible.builtin.user:
+        name: "{{ item }}"
+        shell: /bin/bash
+      loop: [deploy, ops]
+
+    - name: Give each user a key the role did not add
+      ansible.posix.authorized_key:
+        user: "{{ item.user }}"
+        key: "{{ item.key }}"
+      loop:
+        # Must survive: deploy's entry is not exclusive.
+        - user: deploy
+          key: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIe6IbA9s2cUTO8qVbg1CFl89avPxnR0dTLXbhEAcq4H existing@molecule.example
+        # Must go: ops's entry is exclusive.
+        - user: ops
+          key: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFVRRvSdoy+UQJBKOmoYhGSxF39T2+SyGV66cvk/oOIp stray@molecule.example
+      loop_control:
+        label: "{{ item.user }}"

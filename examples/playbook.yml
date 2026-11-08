@@ -1,0 +1,19 @@
+---
+# Example used by `just live`:
+#   just live inventory.ini
+- name: Bootstrap SSH access
+  hosts: all
+  become: true
+  roles:
+    - role: libre_devops.ssh_bootstrap
+      vars:
+        ssh_bootstrap_authorized_keys:
+          - user: deploy
+            key_files:
+              - ~/.ssh/id_ed25519.pub
+        ssh_bootstrap_sshd_settings:
+          PermitEmptyPasswords: false
+          PermitRootLogin: false
+          PasswordAuthentication: false
+          KbdInteractiveAuthentication: false
+          MaxAuthTries: 3

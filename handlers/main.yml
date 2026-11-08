@@ -1,0 +1,7 @@
+---
+# try-reload-or-restart reloads sshd if it runs and does nothing otherwise: Ubuntu starts it
+# on the first connection (socket activation), and it reads the new settings when it starts.
+- name: Reload sshd  # noqa: command-instead-of-module
+  ansible.builtin.command:
+    argv: [systemctl, try-reload-or-restart, "{{ __ssh_bootstrap_service }}.service"]
+  changed_when: true

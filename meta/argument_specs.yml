@@ -1,0 +1,69 @@
+---
+argument_specs:
+  main:
+    short_description: Add SSH public keys for existing users and harden sshd with a validated drop-in
+    description:
+      - Adds (or removes) public keys in the authorized_keys of users that already exist, from
+        strings or from files on the control node.
+      - Writes sshd settings to a drop-in in /etc/ssh/sshd_config.d, checks it and the whole
+        configuration with sshd -t before reloading, and checks with sshd -T that each setting
+        is in effect.
+    author:
+      - Craig Thacker
+    options:
+      ssh_bootstrap_authorized_keys:
+        description: The keys to manage, one entry per user.
+        type: list
+        elements: dict
+        default: []
+        options:
+          user:
+            description: The account. It must already exist.
+            type: str
+            required: true
+          keys:
+            description: Public keys, one per item.
+            type: list
+            elements: str
+            default: []
+          key_files:
+            description: Paths on the control node to public key files. A leading ~ is expanded.
+            type: list
+            elements: path
+            default: []
+          exclusive:
+            description: Remove every other key from the user's authorized_keys.
+            type: bool
+            default: false
+          state:
+            description: present adds the keys. absent removes them.
+            type: str
+            choices: [present, absent]
+            default: present
+      ssh_bootstrap_skip_missing_key_files:
+        description: Skip key_files that do not exist on the control node, instead of failing.
+        type: bool
+        default: false
+      ssh_bootstrap_install_server:
+        description: Install the OpenSSH server package if it is missing.
+        type: bool
+        default: false
+      ssh_bootstrap_sshd_settings:
+        description:
+          - sshd settings for the drop-in, by keyword. Booleans become yes or no, lists become
+            space-separated values. Empty leaves sshd alone. Match blocks are not supported.
+        type: dict
+        default:
+          PermitEmptyPasswords: false
+      ssh_bootstrap_sshd_dropin_name:
+        description: File name of the drop-in in /etc/ssh/sshd_config.d. Drop-ins are read in name order and the first value wins.
+        type: str
+        default: 10-ssh-bootstrap.conf
+      ssh_bootstrap_sshd_ensure_include:
+        description: Add the Include line for /etc/ssh/sshd_config.d to the top of /etc/ssh/sshd_config when it is missing.
+        type: bool
+        default: true
+      ssh_bootstrap_verify_effective:
+        description: After reloading sshd, check with sshd -T that each single-value setting is in effect.
+        type: bool
+        default: true

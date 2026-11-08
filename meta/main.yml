@@ -1,0 +1,36 @@
+---
+galaxy_info:
+  namespace: libre_devops
+  role_name: ssh_bootstrap
+  author: Craig Thacker
+  company: Libre DevOps
+  description: >-
+    Add SSH public keys for existing users and harden sshd with a validated drop-in, without
+    editing the distribution's sshd_config
+  license: MIT
+  min_ansible_version: "2.16"
+  issue_tracker_url: https://github.com/libre-devops/ansible-role-ssh-bootstrap/issues
+  platforms:
+    - name: EL
+      versions:
+        - "8"
+        - "9"
+        - "10"
+    - name: Debian
+      versions:
+        - bookworm
+        - trixie
+    - name: Ubuntu
+      versions:
+        - noble
+    - name: SLES
+      versions:
+        - "15"
+  galaxy_tags:
+    - ssh
+    - sshd
+    - security
+    - hardening
+    - authorizedkeys
+
+dependencies: []
