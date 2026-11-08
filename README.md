@@ -161,7 +161,7 @@ The keywords are in the [`sshd_config` manual](https://man.openbsd.org/sshd_conf
 
 For most keywords `sshd` uses the first value it reads. The distribution's `sshd_config` includes `/etc/ssh/sshd_config.d/*.conf` near the top and reads the files in name order, so `10-ssh-bootstrap.conf` comes before files such as Red Hat's `50-redhat.conf` and cloud-init's `50-cloud-init.conf`. A setting above the `Include` line in `sshd_config`, or in a drop-in with a lower name, still wins. The `sshd -T` check catches that and says which setting is overridden. Rename the drop-in with `ssh_bootstrap_sshd_dropin_name` (for example `00-ssh-bootstrap.conf`) or remove the earlier line.
 
-`sshd -T` prints some keywords (such as `AllowUsers`) one line per value, times in seconds, and a few values under older names (`PermitRootLogin prohibit-password` shows as `without-password`). So the check compares single-value settings only, skips times written with a unit such as `1m`, and translates the aliases it knows.
+`sshd -T` prints some keywords (such as `AllowUsers`) one line per value, times in seconds, and a few values under older names (OpenSSH 10.0 and earlier show `PermitRootLogin prohibit-password` as `without-password`). So the check compares single-value settings only, skips times written with a unit such as `1m`, and accepts either name for the aliases it knows.
 
 ## Examples
 

@@ -28,8 +28,8 @@ __ssh_bootstrap_rendered_settings: >-
   {%- endfor -%}
   {{ rendered.lines | to_json }}
 
-# sshd -T prints some values under an older name, so the effective-settings check compares
-# with that name.
+# sshd -T prints some values under an older name (OpenSSH 10.0 and earlier print
+# without-password for prohibit-password), so the effective-settings check accepts both.
 __ssh_bootstrap_sshd_t_aliases:
   permitrootlogin:
     prohibit-password: without-password

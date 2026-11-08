@@ -130,13 +130,14 @@
 - name: Check every single-value setting is in effect
   vars:
     __ssh_bootstrap_key: "{{ item.key | lower }}"
-    __ssh_bootstrap_expected: >-
-      {{ __ssh_bootstrap_key ~ ' '
-         ~ (__ssh_bootstrap_sshd_t_aliases[__ssh_bootstrap_key] | default({})).get(item.value | lower, item.value | lower) }}
+    # Either spelling: newer OpenSSH releases print the current name again.
+    __ssh_bootstrap_expected:
+      - "{{ __ssh_bootstrap_key }} {{ item.value | lower }}"
+      - "{{ __ssh_bootstrap_key }} {{ (__ssh_bootstrap_sshd_t_aliases[__ssh_bootstrap_key] | default({})).get(item.value | lower, item.value | lower) }}"
     __ssh_bootstrap_actual: "{{ __ssh_bootstrap_effective.stdout_lines | select('match', '(?i)^' ~ item.key ~ ' ') | list }}"
   ansible.builtin.assert:
     that:
-      - __ssh_bootstrap_actual | length != 1 or __ssh_bootstrap_actual[0] | lower == __ssh_bootstrap_expected
+      - __ssh_bootstrap_actual | length != 1 or __ssh_bootstrap_actual[0] | lower in __ssh_bootstrap_expected
     fail_msg: >-
       sshd is using '{{ __ssh_bootstrap_actual | first | default('') }}', not '{{ item.key }} {{ item.value }}'.
       Something read before the drop-in sets it, such as a line above the Include in sshd_config or a

@@ -47,7 +47,9 @@
       ansible.builtin.assert:
         that:
           - "'permitemptypasswords no' in __verify_effective.stdout_lines"
-          - "'permitrootlogin without-password' in __verify_effective.stdout_lines"
+          # OpenSSH 10.0 and earlier print the old name, later releases the current one.
+          - "('permitrootlogin without-password' in __verify_effective.stdout_lines)
+             or ('permitrootlogin prohibit-password' in __verify_effective.stdout_lines)"
           - "'logingracetime 60' in __verify_effective.stdout_lines"
           - "'passwordauthentication no' in __verify_effective.stdout_lines"
           - "'maxauthtries 3' in __verify_effective.stdout_lines"
