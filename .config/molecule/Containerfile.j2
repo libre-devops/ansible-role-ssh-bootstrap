@@ -1,12 +1,16 @@
 # Test image for every platform: systemd as PID 1, Python for Ansible, and sudo so the tests
-# use become the same way a real run does. The ubi-init images already have systemd and Python.
+# use become the same way a real run does. On GitHub's runners sudo's PAM account check fails
+# in the UBI 9 image, so the test images skip it (Defaults !pam_acct_mgmt). The ubi-init
+# images already have systemd and Python.
 # libcap2 (Debian, Ubuntu) and util-linux-systemd (SUSE, for logger) are on every normal server
 # install but missing from the minimal images, and Microsoft's agents need them.
 FROM {{ item.image }}
 
 {% if 'ubi' in item.image %}
 RUN dnf -y install sudo{{ ' python3.12' if 'ubi8' in item.image else '' }} \
-    && dnf clean all
+    && dnf clean all \
+    && echo 'Defaults !pam_acct_mgmt' > /etc/sudoers.d/molecule \
+    && chmod 0440 /etc/sudoers.d/molecule
 {% elif 'debian' in item.image or 'ubuntu' in item.image %}
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
