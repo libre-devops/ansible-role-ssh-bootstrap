@@ -1,0 +1,31 @@
+---
+# RHEL 8 with only its own Python 3.6, as most RHEL 8 servers are. ansible-core 2.17 and later
+# cannot run modules on Python 3.6, so this scenario runs with ansible-core 2.16 from the
+# python36 dependency group: just test-python36. It uses the default scenario's playbooks, so
+# the role is checked the same way, including the second run with no changes.
+scenario:
+  test_sequence:
+    - destroy
+    - syntax
+    - create
+    - prepare
+    - converge
+    - idempotence
+    - verify
+    - destroy
+
+platforms:
+  # A name with python36 in it keeps the image's own Python: the Containerfile adds Python 3.12
+  # to RHEL 8 otherwise.
+  - name: ssh-rhel8-python36
+    image: registry.access.redhat.com/ubi8/ubi-init:latest
+    dockerfile: ../../.config/molecule/Containerfile.j2
+    command: /sbin/init
+    systemd: always
+
+provisioner:
+  name: ansible
+  playbooks:
+    prepare: ../default/prepare.yml
+    converge: ../default/converge.yml
+    verify: verify.yml

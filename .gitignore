@@ -1,5 +1,6 @@
 # Python and tooling
 .venv/
+.venv-python36/
 __pycache__/
 .cache/
 .ansible/

@@ -15,9 +15,19 @@ dev = [
   "yamllint>=1.38,<2",
   "zizmor>=1.16,<2",
 ]
+# The python36 Molecule scenario: ansible-core 2.16 is the last release that can manage hosts
+# with Python 3.6, such as RHEL 8 with its own Python. Installed into .venv-python36 by
+# `just test-python36`, never alongside dev.
+python36 = [
+  "ansible-core>=2.16.19,<2.17",
+  "molecule>=26.10,<27",
+  "molecule-plugins[podman]>=26.10,<27",
+]
 
 [tool.uv]
 package = false
+# dev and python36 pin different ansible-core releases, so uv resolves them separately.
+conflicts = [[{ group = "dev" }, { group = "python36" }]]
 
 # Only resolve releases at least a week old, so a freshly published bad release is not picked up.
 exclude-newer = "7 days"

@@ -1,0 +1,16 @@
+---
+# The default scenario's checks, then proof that the host really used RHEL 8's own Python 3.6.
+- name: Verify
+  ansible.builtin.import_playbook: ../default/verify.yml
+
+- name: Check the managed Python
+  hosts: all
+  gather_facts: true
+  tasks:
+    - name: Check Ansible ran the role with Python 3.6
+      ansible.builtin.assert:
+        that:
+          - ansible_facts['python']['version']['major'] == 3
+          - ansible_facts['python']['version']['minor'] == 6
+        fail_msg: "Ansible used Python {{ ansible_facts['python_version'] }} at {{ ansible_facts['python']['executable'] }}, not 3.6."
+        success_msg: "Python {{ ansible_facts['python_version'] }} at {{ ansible_facts['python']['executable'] }}"

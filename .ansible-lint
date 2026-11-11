@@ -5,3 +5,4 @@ exclude_paths:
   - .cache/
   - .github/
   - .venv/
+  - .venv-python36/

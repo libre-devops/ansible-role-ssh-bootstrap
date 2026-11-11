@@ -5,6 +5,7 @@ ignore: |
   .ansible/
   .cache/
   .venv/
+  .venv-python36/
 
 rules:
   comments:

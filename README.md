@@ -48,7 +48,7 @@ It does not create users, manage `known_hosts`, or write `Match` blocks.
 |---|---|
 | Control node | `ansible-core` 2.16 or later. |
 | Collections | `ansible.posix`, for `authorized_key`. `community.general` on SUSE hosts, only with `ssh_bootstrap_install_server: true`. The `ansible` package includes both. |
-| Managed nodes | systemd, OpenSSH 7.3 or later (for `Include`), and a Python that your `ansible-core` supports. RHEL 8 and SLES 15 ship Python 3.6: install `python3.12` (RHEL 8) or `python311` (SLES 15) and set `ansible_python_interpreter`. |
+| Managed nodes | systemd, OpenSSH 7.3 or later (for `Include`), and a Python that your `ansible-core` supports. RHEL 8 and SLES 15 ship Python 3.6, which ansible-core 2.17 and later cannot use: install a newer Python, or use ansible-core 2.16, which CI tests on RHEL 8's own Python. See [Python on managed nodes](./docs/using-without-galaxy.md#on-managed-nodes). |
 | Privileges | `become: true`. |
 
 ## Supported platforms
@@ -57,7 +57,7 @@ Each platform below runs in CI on every pull request.
 
 | Distribution | sshd configuration | Notes |
 |---|---|---|
-| RHEL 8 (UBI) | `/etc/ssh/sshd_config`, no `Include` | The role adds `Include /etc/ssh/sshd_config.d/*.conf` at the top. |
+| RHEL 8 (UBI) | `/etc/ssh/sshd_config`, no `Include` | The role adds `Include /etc/ssh/sshd_config.d/*.conf` at the top. Tested twice: with Python 3.12 added under current ansible-core, and with only RHEL 8's own Python 3.6 under ansible-core 2.16. |
 | RHEL 9 (UBI), Rocky 10 | `/etc/ssh/sshd_config` with `Include` | Red Hat's `50-redhat.conf` sorts after the role's drop-in. |
 | Debian 12 and 13 | `/etc/ssh/sshd_config` with `Include` | |
 | Ubuntu 24.04 and 26.04 | `/etc/ssh/sshd_config` with `Include` | `sshd` starts on demand through `ssh.socket`. |
@@ -76,6 +76,8 @@ ansible-galaxy collection install ansible.posix
 ```
 
 Or pin a release from GitHub, as in [`examples/requirements.yml`](./examples/requirements.yml).
+
+Without Galaxy, or to keep a copy inside your organisation, see [Using the role without Galaxy](./docs/using-without-galaxy.md). It covers git, release archives, requirements files that point at your own servers, AWX and Automation Controller, execution environments, and managed nodes with Python 3.6 such as RHEL 8.
 
 ## Quick start
 
@@ -203,6 +205,7 @@ ssh_bootstrap_authorized_keys:
 
 | Symptom | What to check |
 |---|---|
+| `The module interpreter '/usr/bin/python3' was not found` or `Module result deserialization failed`, on the first task | The host only has Python 3.6 (RHEL 8, SLES 15), which ansible-core 2.17 and later cannot use. Every module fails, not only this role's. See [Python on managed nodes](./docs/using-without-galaxy.md#on-managed-nodes). |
 | `User ... does not exist` | The role only adds keys. Create the user first, for example with `ansible.builtin.user`. |
 | `... does not exist on the control node` | The key file path is relative to where you run `ansible-playbook`, or `~` is a different home on the control node. |
 | `sshd -t rejected the configuration` | A keyword or value is wrong for this OpenSSH version. The message has `sshd`'s own error. The previous drop-in is back and `sshd` was not reloaded. |
@@ -219,13 +222,16 @@ You need [uv](https://docs.astral.sh/uv/), [just](https://github.com/casey/just)
 | `just deps` | Installs the pinned Python tools (`uv.lock`) and the collections in `requirements.yml` into `.ansible/`. |
 | `just lint` | `yamllint`, `ansible-lint` on the production profile, and `zizmor` on the workflows. |
 | `just test [scenario] [platform]` | Runs a Molecule scenario on one platform, or on all of them. `just test default rhel8`. |
-| `just test-all` | Every scenario on every platform, one after another. |
+| `just test-python36` | The `python36` scenario: RHEL 8 with only its own Python 3.6, under ansible-core 2.16 from its own locked tool set in `.venv-python36`. |
+| `just test-all` | Every scenario on every platform, one after another, then `test-python36`. |
 | `just converge <scenario> <platform>` | Converges and leaves the container running. `just login` opens a shell in it, `just destroy` removes it. |
 | `just live <inventory> [args]` | Runs [`examples/playbook.yml`](./examples/playbook.yml) against real hosts. |
 | `just secrets` | Scans the git history with gitleaks. |
 | `just platforms`, `just scenarios` | List what can be tested. |
 
 The `default` scenario creates two users, gives each a key the role did not add, then runs the role: one user's entry adds a key from a file and keeps the existing key, the other's is exclusive and removes it. It writes a hardened drop-in, checks the settings with `sshd -T`, checks the `Include` line, and then runs again to prove nothing changes. The keys in `molecule/fixtures` are public test keys whose private halves were thrown away.
+
+The `python36` scenario runs the same playbooks on RHEL 8 with only the Python it ships, 3.6, which ansible-core 2.17 and later cannot use. It runs under ansible-core 2.16, the `python36` dependency group in `pyproject.toml`, and its verify step fails unless the host really used Python 3.6.
 
 ## Releasing
 

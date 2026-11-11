@@ -44,9 +44,15 @@ test scenario="default" platform="": deps
         for p in $(just platforms); do uv run molecule test -s '{{ scenario }}' --platform-name '{{ platform_prefix }}'"$p"; done; \
     fi
 
+# Run the python36 scenario: RHEL 8 with its own Python 3.6, under ansible-core 2.16, the last
+# release that can manage it. Its tools live in .venv-python36, apart from the dev tools.
+test-python36: deps
+    UV_PROJECT_ENVIRONMENT=.venv-python36 uv run --python 3.12 --locked --no-default-groups --group python36 molecule test -s python36
+
 # Run every scenario on every platform, one at a time. Slow: CI runs these in parallel.
 test-all: deps
-    for s in $(just scenarios); do just test "$s"; done
+    for s in $(just scenarios); do [ "$s" = python36 ] || just test "$s"; done
+    just test-python36
 
 # Converge a scenario and leave the instance running: just converge default debian12
 converge scenario platform: deps
