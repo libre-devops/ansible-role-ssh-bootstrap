@@ -48,7 +48,7 @@ It does not create users, manage `known_hosts`, or write `Match` blocks.
 |---|---|
 | Control node | `ansible-core` 2.16 or later. |
 | Collections | `ansible.posix`, for `authorized_key`. `community.general` on SUSE hosts, only with `ssh_bootstrap_install_server: true`. The `ansible` package includes both. |
-| Managed nodes | systemd, OpenSSH 7.3 or later (for `Include`), and a Python that your `ansible-core` supports. RHEL 8 and SLES 15 ship Python 3.6, which ansible-core 2.17 and later cannot use: install a newer Python, or use ansible-core 2.16, which CI tests on RHEL 8's own Python. See [Python on managed nodes](./docs/using-without-galaxy.md#on-managed-nodes). |
+| Managed nodes | systemd, OpenSSH 7.3 or later (for `Include`), and a Python that your `ansible-core` supports. RHEL 8 and SLES 15 ship Python 3.6, which ansible-core 2.17 and later cannot use: run [libre_devops.python](https://github.com/libre-devops/ansible-role-python) first, as in [RHEL 8 hosts with only Python 3.6](#rhel-8-hosts-with-only-python-36), or use ansible-core 2.16, which CI tests on RHEL 8's own Python. |
 | Privileges | `become: true`. |
 
 ## Supported platforms
@@ -167,6 +167,50 @@ For most keywords `sshd` uses the first value it reads. The distribution's `sshd
 
 ## Examples
 
+### RHEL 8 hosts with only Python 3.6
+
+RHEL 8 ships Python 3.6, which ansible-core 2.17 and later cannot run modules with, so every task fails before this role even starts (see [Troubleshooting](#troubleshooting)). Put [libre_devops.python](https://github.com/libre-devops/ansible-role-python) in front of this role, in the same play. It installs `python3.12` from AppStream, through your Satellite or mirror like any other package, points Ansible at it and gathers facts, and then this role runs as usual.
+
+Install both, for example from GitHub:
+
+```yaml
+# requirements.yml
+roles:
+  - name: libre_devops.python
+    src: https://github.com/libre-devops/ansible-role-python.git
+    scm: git
+    version: 1.0.0
+  - name: libre_devops.ssh_bootstrap
+    src: https://github.com/libre-devops/ansible-role-ssh-bootstrap.git
+    scm: git
+    version: 1.0.0
+```
+
+Then chain them:
+
+```yaml
+- name: Bootstrap SSH access on RHEL 8
+  hosts: rhel8
+  become: true
+  # Gathering facts would fail on Python 3.6. libre_devops.python gathers them once it has
+  # installed Python 3.12, before libre_devops.ssh_bootstrap needs them.
+  gather_facts: false
+  roles:
+    - role: libre_devops.python
+    - role: libre_devops.ssh_bootstrap
+      vars:
+        ssh_bootstrap_authorized_keys:
+          - user: deploy
+            key_files:
+              - ~/.ssh/id_ed25519.pub
+        ssh_bootstrap_sshd_settings:
+          PermitEmptyPasswords: false
+          PermitRootLogin: false
+          PasswordAuthentication: false
+```
+
+Every later play in the same run uses the same Python. To skip `libre_devops.python` on later runs, set `ansible_python_interpreter: /usr/bin/python3.12` in `group_vars/rhel8.yml` once the hosts have it. For hosts with no repositories, `libre_devops.python` can push the packages from the control node instead (`python_bootstrap_source: files`), and SLES 15 gets `python311` the same way. See its README for every option.
+
 ### A typical hardening set
 
 ```yaml
@@ -205,7 +249,7 @@ ssh_bootstrap_authorized_keys:
 
 | Symptom | What to check |
 |---|---|
-| `The module interpreter '/usr/bin/python3' was not found` or `Module result deserialization failed`, on the first task | The host only has Python 3.6 (RHEL 8, SLES 15), which ansible-core 2.17 and later cannot use. Every module fails, not only this role's. See [Python on managed nodes](./docs/using-without-galaxy.md#on-managed-nodes). |
+| `The module interpreter '/usr/bin/python3' was not found` or `Module result deserialization failed`, on the first task | The host only has Python 3.6 (RHEL 8, SLES 15), which ansible-core 2.17 and later cannot use. Every module fails, not only this role's. Run [libre_devops.python](https://github.com/libre-devops/ansible-role-python) first in the play, as in [RHEL 8 hosts with only Python 3.6](#rhel-8-hosts-with-only-python-36). |
 | `User ... does not exist` | The role only adds keys. Create the user first, for example with `ansible.builtin.user`. |
 | `... does not exist on the control node` | The key file path is relative to where you run `ansible-playbook`, or `~` is a different home on the control node. |
 | `sshd -t rejected the configuration` | A keyword or value is wrong for this OpenSSH version. The message has `sshd`'s own error. The previous drop-in is back and `sshd` was not reloaded. |

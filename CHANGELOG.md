@@ -6,6 +6,7 @@ Notable changes to this role. The format follows [Keep a Changelog](https://keep
 
 ### Added
 
+- A README example, "RHEL 8 hosts with only Python 3.6": `libre_devops.python` chained in front of this role in one play, with the requirements file for both. Requirements, Troubleshooting and the without-Galaxy guide point at it.
 - `docs/using-without-galaxy.md`, linked from the README's Installation section: installing the role without Galaxy (git, release archives, requirements files that name their own source), getting its collections with no Galaxy access, keeping a copy on your own git server or artifact store, AWX, Automation Controller and execution environments, and the ansible-core and Python versions it needs.
 - A `python36` Molecule scenario and CI job: RHEL 8 with only its own Python 3.6, under ansible-core 2.16 from a separately locked tool set (`just test-python36`). It runs the default scenario's playbooks and checks the host really used Python 3.6.
 

@@ -217,22 +217,21 @@ With ansible-core 2.17 or later, a RHEL 8 host fails on its first task, usually 
 
 There are three ways round it.
 
-**Use [libre_devops.python](https://github.com/libre-devops/ansible-role-python) (recommended).** It finds or installs a Python the running ansible-core accepts, from the host's repositories (Satellite included), package files pushed from the control node, or a self-contained build, and sets `ansible_python_interpreter` for the rest of the run. Run it first, with `gather_facts: false`:
+**Use [libre_devops.python](https://github.com/libre-devops/ansible-role-python) (recommended).** It finds or installs a Python the running ansible-core accepts, from the host's repositories (Satellite included), package files pushed from the control node, or a self-contained build, and sets `ansible_python_interpreter` for the rest of the run. Put it first in the same play, with `gather_facts: false`:
 
 ```yaml
-- name: Give the hosts a usable Python
-  hosts: all
+- name: This role on RHEL 8
+  hosts: rhel8
   become: true
+  # Gathering facts would fail on Python 3.6. libre_devops.python gathers them
+  # once it has installed Python 3.12.
   gather_facts: false
   roles:
     - role: libre_devops.python
-
-- name: Then this role
-  hosts: all
-  become: true
-  roles:
     - role: libre_devops.ssh_bootstrap
 ```
+
+The README's [RHEL 8 hosts with only Python 3.6](../README.md#rhel-8-hosts-with-only-python-36) example has the requirements file and this role's variables.
 
 **Or install one with a play of your own.** `raw` runs a plain command and needs no Python on the host, so it can install one:
 
