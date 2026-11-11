@@ -215,9 +215,26 @@ ansible-core runs its modules with the Python on each managed node, and each rel
 
 With ansible-core 2.17 or later, a RHEL 8 host fails on its first task, usually Gathering Facts, before this role runs at all. The message is `The module interpreter '/usr/bin/python3' was not found`, because RHEL 8 has no `/usr/bin/python3` unless you install one. Pointing `ansible_python_interpreter` at `/usr/libexec/platform-python` gives `Module result deserialization failed` instead. Every module fails the same way, not only this role's.
 
-There are two ways round it.
+There are three ways round it.
 
-**Give the hosts a newer Python (recommended).** `raw` runs a plain command and needs no Python on the host, so it can install one:
+**Use [libre_devops.python](https://github.com/libre-devops/ansible-role-python) (recommended).** It finds or installs a Python the running ansible-core accepts, from the host's repositories (Satellite included), package files pushed from the control node, or a self-contained build, and sets `ansible_python_interpreter` for the rest of the run. Run it first, with `gather_facts: false`:
+
+```yaml
+- name: Give the hosts a usable Python
+  hosts: all
+  become: true
+  gather_facts: false
+  roles:
+    - role: libre_devops.python
+
+- name: Then this role
+  hosts: all
+  become: true
+  roles:
+    - role: libre_devops.ssh_bootstrap
+```
+
+**Or install one with a play of your own.** `raw` runs a plain command and needs no Python on the host, so it can install one:
 
 ```yaml
 ---

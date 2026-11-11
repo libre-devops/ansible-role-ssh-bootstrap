@@ -224,7 +224,7 @@ You need [uv](https://docs.astral.sh/uv/), [just](https://github.com/casey/just)
 | `just test [scenario] [platform]` | Runs a Molecule scenario on one platform, or on all of them. `just test default rhel8`. |
 | `just test-python36` | The `python36` scenario: RHEL 8 with only its own Python 3.6, under ansible-core 2.16 from its own locked tool set in `.venv-python36`. |
 | `just test-all` | Every scenario on every platform, one after another, then `test-python36`. |
-| `just converge <scenario> <platform>` | Converges and leaves the container running. `just login` opens a shell in it, `just destroy` removes it. |
+| `just converge <scenario> <platform>` | Runs a scenario on one platform and leaves the container running, pass or fail. `just login` opens a shell in it, `just destroy` removes it. |
 | `just live <inventory> [args]` | Runs [`examples/playbook.yml`](./examples/playbook.yml) against real hosts. |
 | `just secrets` | Scans the git history with gitleaks. |
 | `just platforms`, `just scenarios` | List what can be tested. |
