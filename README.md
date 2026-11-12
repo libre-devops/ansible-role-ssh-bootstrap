@@ -13,7 +13,7 @@ Adds SSH public keys for existing users and hardens `sshd` with a drop-in file, 
 
 [![CI](https://github.com/libre-devops/ansible-role-ssh-bootstrap/actions/workflows/ci.yml/badge.svg)](https://github.com/libre-devops/ansible-role-ssh-bootstrap/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/libre-devops/ansible-role-ssh-bootstrap?sort=semver&label=release)](https://github.com/libre-devops/ansible-role-ssh-bootstrap/releases/latest)
-[![Galaxy](https://img.shields.io/badge/galaxy-libre__devops.ssh__bootstrap-EE0000?logo=ansible&logoColor=white)](https://galaxy.ansible.com/ui/standalone/roles/libre_devops/ssh_bootstrap/)
+[![Galaxy](https://img.shields.io/badge/galaxy-libre__devops.ssh__bootstrap-EE0000?logo=ansible&logoColor=white)](https://galaxy.ansible.com/ui/standalone/roles/libre_devops/ssh_bootstrap/documentation/)
 [![Licence](https://img.shields.io/github/license/libre-devops/ansible-role-ssh-bootstrap)](./LICENSE)
 
 ---
