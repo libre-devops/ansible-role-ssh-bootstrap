@@ -8,7 +8,7 @@ dependencies = []
 
 [dependency-groups]
 dev = [
-  "ansible-core>=2.21,<2.22",
+  "ansible-core<2.22,>=2.21",
   "ansible-lint>=26.10,<27",
   "molecule>=26.10,<27",
   "molecule-plugins[podman]>=26.10,<27",
@@ -19,7 +19,7 @@ dev = [
 # with Python 3.6, such as RHEL 8 with its own Python. Installed into .venv-python36 by
 # `just test-python36`, never alongside dev.
 python36 = [
-  "ansible-core>=2.16.19,<2.17",
+  "ansible-core>=2.16.19,<2.22",
   "molecule>=26.10,<27",
   "molecule-plugins[podman]>=26.10,<27",
 ]
